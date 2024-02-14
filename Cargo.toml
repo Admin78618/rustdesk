@@ -1,6 +1,6 @@
 [package]
 name = "FasterHelp"
-version = "1.2.4"
+version = "1.2.5"
 authors = ["Faster <servis@faster.cz>","Rustdesk <info@rustdesk.com>"]
 edition = "2021"
 build= "build.rs"
