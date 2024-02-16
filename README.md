@@ -1,6 +1,7 @@
 <p align="center">
-  <img src="res/logo-header.svg" alt="RustDesk - Your remote desktop"><br>
-  <b>We need your help to translate this README, <a href="https://github.com/rustdesk/rustdesk/tree/master/src/lang">RustDesk UI</a> and <a href="https://github.com/rustdesk/doc.rustdesk.com">RustDesk Doc</a> to your native language</b>
+  <img src="res/logo-header.svg" alt="FasterRustDesk - remote desktop for Faster clients"><br>
+  <b>Fork of rustdesk customized for Faster clients</b>
+  https://www.faster.cz/
 </p>
 
 Chat with us: [Discord](https://discord.gg/nDceKgxnkV) | [Twitter](https://twitter.com/rustdesk) | [Reddit](https://www.reddit.com/r/rustdesk)
