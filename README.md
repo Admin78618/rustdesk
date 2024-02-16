@@ -4,6 +4,8 @@
   https://www.faster.cz/
 </p>
 
+<p align="center">
 [**BINARY DOWNLOAD**](https://github.com/rustdesk/rustdesk/releases)
 
 [**NIGHTLY BUILD**](https://github.com/rustdesk/rustdesk/releases/tag/nightly)
+</p>
