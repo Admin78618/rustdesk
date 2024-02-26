@@ -357,15 +357,29 @@ class FfiModel with ChangeNotifier {
         if (isDesktop) {
           gFFI.cmFileModel.onFileTransferLog(evt);
         }
+      } else if (name == 'sync_peer_option') {
+        _handleSyncPeerOption(evt, peerId);
       } else {
         debugPrint('Unknown event name: $name');
       }
     };
   }
 
+  _handleSyncPeerOption(Map<String, dynamic> evt, String peer) {
+    final k = evt['k'];
+    final v = evt['v'];
+    if (k == kOptionViewOnly) {
+      setViewOnly(peer, v as bool);
+    } else if (k == 'keyboard_mode') {
+      parent.target?.inputModel.updateKeyboardMode();
+    } else if (k == 'input_source') {
+      stateGlobal.getInputSource(force: true);
+    }
+  }
+
   onUrlSchemeReceived(Map<String, dynamic> evt) {
     final url = evt['url'].toString().trim();
-    if (url.startsWith(kUniLinksPrefix) && handleUriLink(uriString: url)) {
+    if (url.startsWith(bind.mainUriPrefixSync()) && handleUriLink(uriString: url)) {
       return;
     }
     switch (url) {
@@ -728,7 +742,7 @@ class FfiModel with ChangeNotifier {
       setViewOnly(
           peerId,
           bind.sessionGetToggleOptionSync(
-              sessionId: sessionId, arg: 'view-only'));
+              sessionId: sessionId, arg: kOptionViewOnly));
     }
     if (connType == ConnType.defaultConn) {
       final platformAdditions = evt['platform_additions'];

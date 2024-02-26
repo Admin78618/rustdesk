@@ -440,7 +440,6 @@ pub fn start_os_service() {
 const SERVICE_TYPE: ServiceType = ServiceType::OWN_PROCESS;
 
 extern "C" {
-    fn has_rdp_service() -> BOOL;
     fn get_current_session(rdp: BOOL) -> DWORD;
     fn LaunchProcessWin(cmd: *const u16, session_id: DWORD, as_user: BOOL) -> HANDLE;
     fn GetSessionUserTokenWin(lphUserToken: LPHANDLE, dwSessionId: DWORD, as_user: BOOL) -> BOOL;
@@ -676,7 +675,7 @@ async fn send_close_async(postfix: &str) -> ResultType<()> {
 
 // https://docs.microsoft.com/en-us/windows/win32/api/sas/nf-sas-sendsas
 // https://www.cnblogs.com/doutu/p/4892726.html
-fn send_sas() {
+pub fn send_sas() {
     #[link(name = "sas")]
     extern "system" {
         pub fn SendSAS(AsUser: BOOL);
@@ -743,6 +742,17 @@ pub fn get_current_process_session_id() -> Option<u32> {
     } else {
         None
     }
+}
+
+pub fn is_physical_console_session() -> Option<bool> {
+    if let Some(sid) = get_current_process_session_id() {
+        let physical_console_session_id = unsafe { get_current_session(FALSE) };
+        if physical_console_session_id == u32::MAX {
+            return None;
+        }
+        return Some(physical_console_session_id == sid);
+    }
+    None
 }
 
 pub fn get_active_username() -> String {
@@ -1476,10 +1486,6 @@ pub fn bootstrap() {
     if let Ok(lic) = get_license_from_exe_name() {
         *config::EXE_RENDEZVOUS_SERVER.write().unwrap() = lic.host.clone();
     }
-}
-
-pub fn is_rdp_service_open() -> bool {
-    unsafe { has_rdp_service() == TRUE }
 }
 
 pub fn create_shortcut(id: &str) -> ResultType<()> {
@@ -2408,11 +2414,12 @@ sc start {app_name}
 
 fn run_after_run_cmds(silent: bool) {
     let (_, _, _, exe) = get_install_info();
+    let app = crate::get_app_name().to_lowercase();
     if !silent {
         log::debug!("Spawn new window");
         allow_err!(std::process::Command::new("cmd")
             .arg("/c")
-            .arg("timeout /t 2 & start rustdesk://")
+            .arg("timeout /t 2 & start {app}://")
             .creation_flags(winapi::um::winbase::CREATE_NO_WINDOW)
             .spawn());
     }
