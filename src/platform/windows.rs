@@ -1,8 +1,8 @@
 use super::{CursorData, ResultType};
 use crate::common::PORTABLE_APPNAME_RUNTIME_ENV_KEY;
 use crate::{
+    custom_server::*,
     ipc,
-    license::*,
     privacy_mode::win_topmost_window::{self, WIN_TOPMOST_INJECTED_PROCESS_EXE},
 };
 use hbb_common::libc::{c_int, wchar_t};
@@ -15,7 +15,6 @@ use hbb_common::{
     message_proto::{Resolution, WindowsSession},
     sleep, timeout, tokio,
 };
-use sha2::digest::generic_array::functional::FunctionalSequence;
 use std::process::{Command, Stdio};
 use std::{
     collections::HashMap,
@@ -1468,13 +1467,13 @@ fn get_reg_of(subkey: &str, name: &str) -> String {
     "".to_owned()
 }
 
-pub fn get_license_from_exe_name() -> ResultType<License> {
+pub fn get_license_from_exe_name() -> ResultType<CustomServer> {
     let mut exe = std::env::current_exe()?.to_str().unwrap_or("").to_owned();
     // if defined portable appname entry, replace original executable name with it.
     if let Ok(portable_exe) = std::env::var(PORTABLE_APPNAME_RUNTIME_ENV_KEY) {
         exe = portable_exe;
     }
-    get_license_from_string(&exe)
+    get_custom_server_from_string(&exe)
 }
 
 #[inline]
@@ -2419,7 +2418,7 @@ fn run_after_run_cmds(silent: bool) {
         log::debug!("Spawn new window");
         allow_err!(std::process::Command::new("cmd")
             .arg("/c")
-            .arg("timeout /t 2 & start {app}://")
+            .arg(format!("timeout /t 2 & start {app}://"))
             .creation_flags(winapi::um::winbase::CREATE_NO_WINDOW)
             .spawn());
     }
@@ -2509,8 +2508,8 @@ pub fn alloc_console() {
     }
 }
 
-fn get_license() -> Option<License> {
-    let mut lic: License = Default::default();
+fn get_license() -> Option<CustomServer> {
+    let mut lic: CustomServer = Default::default();
     if let Ok(tmp) = get_license_from_exe_name() {
         lic = tmp;
     } else {
