@@ -13,6 +13,7 @@ import 'package:flutter_hbb/desktop/pages/connection_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
 import 'package:flutter_hbb/desktop/widgets/scroll_wrapper.dart';
+import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/server_model.dart';
 import 'package:flutter_hbb/plugin/ui_manager.dart';
@@ -51,38 +52,72 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   Timer? _updateTimer;
   bool isCardClosed = false;
 
+  RxBool _editHover = false.obs;
+
   final GlobalKey _childKey = GlobalKey();
+
+  bool _isInHomePage() {
+    final controller = Get.find<DesktopTabController>();
+    return controller.state.value.selected == 0;
+  }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-
-    final children = [buildLeftPane(context)];
-    if (!bind.isQs()) {
-      children.addAll([
-        const VerticalDivider(width: 1),
-        Expanded(child: buildRightPane(context)),
-      ]);
-    }
+    final isIncomingOnly = bind.isIncomingOnly();
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: children,
+      children: [
+        buildLeftPane(context),
+        if (!isIncomingOnly) const VerticalDivider(width: 1),
+        if (!isIncomingOnly) Expanded(child: buildRightPane(context)),
+      ],
     );
   }
 
   Widget buildLeftPane(BuildContext context) {
+    final isIncomingOnly = bind.isIncomingOnly();
+    final isOutgoingOnly = bind.isOutgoingOnly();
+    final logo = loadLogo();
     final children = <Widget>[
-      buildTip(context),
-      buildIDBoard(context),
-      buildPasswordBoard(context),
+      if (bind.isCustomClient())
+        Align(
+          alignment: Alignment.center,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () {
+                launchUrl(Uri.parse('https://rustdesk.com'));
+              },
+              child: Opacity(
+                  opacity: 0.5,
+                  child: Text(
+                    translate("powered_by_me"),
+                    overflow: TextOverflow.clip,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontSize: 9, decoration: TextDecoration.underline),
+                  )),
+            ),
+          ).marginOnly(top: 6),
+        ),
+      if (logo != null)
+        Align(
+          alignment: Alignment.center,
+          child: logo.marginOnly(bottom: 0.0),
+        ),
+      buildTip(context, logo),
+      if (!isOutgoingOnly) buildIDBoard(context),
+      if (!isOutgoingOnly) buildPasswordBoard(context),
       FutureBuilder<Widget>(
         future: buildHelpCards(),
         builder: (_, data) {
           if (data.hasData) {
-            if (bind.isQs()) {
-              Future.delayed(Duration(milliseconds: 300), () {
-                _updateWindowSize();
-              });
+            if (isIncomingOnly) {
+              if (_isInHomePage()) {
+                Future.delayed(Duration(milliseconds: 300), () {
+                  _updateWindowSize();
+                });
+              }
             }
             return data.data!;
           } else {
@@ -92,29 +127,59 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       ),
       buildPluginEntry(),
     ];
-    if (bind.isQs()) {
+    if (isIncomingOnly) {
       children.addAll([
-        Divider(),
-        Container(
-          margin: EdgeInsets.fromLTRB(0, 0, 8, 6),
-          child: OnlineStatusWidget(),
-        ),
+        OnlineStatusWidget(
+          onSvcStatusChanged: () {
+            if (_isInHomePage()) {
+              Future.delayed(Duration(milliseconds: 300), () {
+                _updateWindowSize();
+              });
+            }
+          },
+        ).marginOnly(bottom: 6, right: 6)
       ]);
     }
+    final textColor = Theme.of(context).textTheme.titleLarge?.color;
     return ChangeNotifierProvider.value(
       value: gFFI.serverModel,
       child: Container(
-        width: bind.isQs() ? 280.0 : 200.0,
+        width: isIncomingOnly ? 280.0 : 200.0,
         color: Theme.of(context).colorScheme.background,
         child: DesktopScrollWrapper(
           scrollController: _leftPaneScrollController,
-          child: SingleChildScrollView(
-            controller: _leftPaneScrollController,
-            physics: DraggableNeverScrollableScrollPhysics(),
-            child: Column(
-              key: _childKey,
-              children: children,
-            ),
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                controller: _leftPaneScrollController,
+                physics: DraggableNeverScrollableScrollPhysics(),
+                child: Column(
+                  key: _childKey,
+                  children: children,
+                ),
+              ),
+              if (isOutgoingOnly)
+                Positioned(
+                  bottom: 6,
+                  left: 12,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: InkWell(
+                      child: Obx(
+                        () => Icon(
+                          Icons.settings,
+                          color: _editHover.value
+                              ? textColor
+                              : Colors.grey.withOpacity(0.5),
+                          size: 22,
+                        ),
+                      ),
+                      onTap: () => DesktopSettingPage.switch2page(0),
+                      onHover: (value) => _editHover.value = value,
+                    ),
+                  ),
+                )
+            ],
           ),
         ),
       ),
@@ -287,21 +352,22 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                 )))),
                         onHover: (value) => refreshHover.value = value,
                       ).marginOnly(right: 8, top: 4),
-                      InkWell(
-                        child: Obx(
-                          () => Tooltip(
-                              message: translate('Change Password'),
-                              child: Icon(
-                                Icons.edit,
-                                color: editHover.value
-                                    ? textColor
-                                    : Color(0xFFDDDDDD),
-                                size: 22,
-                              )).marginOnly(right: 8, top: 4),
+                      if (!bind.isDisableSettings())
+                        InkWell(
+                          child: Obx(
+                            () => Tooltip(
+                                message: translate('Change Password'),
+                                child: Icon(
+                                  Icons.edit,
+                                  color: editHover.value
+                                      ? textColor
+                                      : Color(0xFFDDDDDD),
+                                  size: 22,
+                                )).marginOnly(right: 8, top: 4),
+                          ),
+                          onTap: () => DesktopSettingPage.switch2page(0),
+                          onHover: (value) => editHover.value = value,
                         ),
-                        onTap: () => DesktopSettingPage.switch2page(1),
-                        onHover: (value) => editHover.value = value,
-                      ),
                     ],
                   ),
                 ],
@@ -313,7 +379,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     );
   }
 
-  buildTip(BuildContext context) {
+  buildTip(BuildContext context, Widget? logo) {
+    final isOutgoingOnly = bind.isOutgoingOnly();
     return Padding(
       padding:
           const EdgeInsets.only(left: 20.0, right: 16, top: 16.0, bottom: 5),
@@ -321,29 +388,41 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            translate("Your Desktop"),
-            style: Theme.of(context).textTheme.titleLarge,
-            // style: TextStyle(
-            //     // color: MyTheme.color(context).text,
-            //     fontWeight: FontWeight.normal,
-            //     fontSize: 19),
+          Column(
+            children: [
+              if (!isOutgoingOnly)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    translate("Your Desktop"),
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+            ],
           ),
           SizedBox(
             height: 10.0,
           ),
-          Text(
-            translate("desk_tip"),
-            overflow: TextOverflow.clip,
-            style: Theme.of(context).textTheme.bodySmall,
-          )
+          if (!isOutgoingOnly)
+            Text(
+              translate("desk_tip"),
+              overflow: TextOverflow.clip,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          if (isOutgoingOnly)
+            Text(
+              translate("outgoing_only_desk_tip"),
+              overflow: TextOverflow.clip,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
         ],
       ),
     );
   }
 
   Future<Widget> buildHelpCards() async {
-    if (updateUrl.isNotEmpty &&
+    if (!bind.isCustomClient() &&
+        updateUrl.isNotEmpty &&
         !isCardClosed &&
         bind.mainUriPrefixSync().contains('rustdesk')) {
       return buildInstallCard(
@@ -357,9 +436,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     if (systemError.isNotEmpty) {
       return buildInstallCard("", systemError, "", () {});
     }
-    if (Platform.isWindows) {
+
+    if (Platform.isWindows && !bind.isDisableInstallation()) {
       if (!bind.mainIsInstalled()) {
-        return buildInstallCard("", "install_tip", "Install", () async {
+        return buildInstallCard(
+            "", bind.isOutgoingOnly() ? "" : "install_tip", "Install",
+            () async {
           await rustDeskWinManager.closeAllSubWindows();
           bind.mainGotoInstall();
         });
@@ -372,7 +454,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         });
       }
     } else if (Platform.isMacOS) {
-      if (!bind.mainIsCanScreenRecording(prompt: false)) {
+      if (!(bind.isOutgoingOnly() ||
+          bind.mainIsCanScreenRecording(prompt: false))) {
         return buildInstallCard("Permissions", "config_screen", "Configure",
             () async {
           bind.mainIsCanScreenRecording(prompt: true);
@@ -407,6 +490,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       //   });
       // }
     } else if (Platform.isLinux) {
+      if (bind.isOutgoingOnly()) {
+        return Container();
+      }
       final LinuxCards = <Widget>[];
       if (bind.isSelinuxEnforcing()) {
         // Check is SELinux enforcing, but show user a tip of is SELinux enabled for simple.
@@ -473,8 +559,8 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     return Stack(
       children: [
         Container(
-          margin:
-              EdgeInsets.fromLTRB(0, marginTop, 0, bind.isQs() ? marginTop : 0),
+          margin: EdgeInsets.fromLTRB(
+              0, marginTop, 0, bind.isIncomingOnly() ? marginTop : 0),
           child: Container(
               decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -502,14 +588,15 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                             ]
                           : <Widget>[]) +
                       <Widget>[
-                        Text(
-                          translate(content),
-                          style: TextStyle(
-                              height: 1.5,
-                              color: Colors.white,
-                              fontWeight: FontWeight.normal,
-                              fontSize: 13),
-                        ).marginOnly(bottom: 20)
+                        if (content.isNotEmpty)
+                          Text(
+                            translate(content),
+                            style: TextStyle(
+                                height: 1.5,
+                                color: Colors.white,
+                                fontWeight: FontWeight.normal,
+                                fontSize: 13),
+                          ).marginOnly(bottom: 20)
                       ] +
                       (btnText.isNotEmpty
                           ? <Widget>[
@@ -693,7 +780,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     });
     _uniLinksSubscription = listenUniLinks();
 
-    if (bind.isQs()) {
+    if (bind.isIncomingOnly()) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _updateWindowSize();
       });
@@ -701,10 +788,17 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   }
 
   _updateWindowSize() {
-    RenderBox renderBox =
-        _childKey.currentContext?.findRenderObject() as RenderBox;
-    desktopQsHomeLeftPaneSize = renderBox.size;
-    windowManager.setSize(getDesktopQsHomeSize());
+    RenderObject? renderObject = _childKey.currentContext?.findRenderObject();
+    if (renderObject == null) {
+      return;
+    }
+    if (renderObject is RenderBox) {
+      final size = renderObject.size;
+      if (size != imcomingOnlyHomeSize) {
+        imcomingOnlyHomeSize = size;
+        windowManager.setSize(getIncomingOnlyHomeSize());
+      }
+    }
   }
 
   @override

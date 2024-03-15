@@ -1522,7 +1522,10 @@ class LastWindowPosition {
 }
 
 String get windowFramePrefix =>
-    bind.isQs() ? "${kWindowPrefix}qs_" : kWindowPrefix;
+    kWindowPrefix +
+    (bind.isIncomingOnly()
+        ? "incoming_"
+        : (bind.isOutgoingOnly() ? "outgoing_" : ""));
 
 /// Save window position and size on exit
 /// Note that windowId must be provided if it's subwindow
@@ -1549,7 +1552,13 @@ Future<void> saveWindowPosition(WindowType type, {int? windowId}) async {
 
   switch (type) {
     case WindowType.Main:
-      isMaximized = await windowManager.isMaximized();
+      // Checking `bind.isIncomingOnly()` is a simple workaround for MacOS.
+      // `await windowManager.isMaximized()` will always return true
+      // if is not resizable. The reason is unknown.
+      //
+      // `windowManager.setResizable(!bind.isIncomingOnly());` in main.dart
+      isMaximized =
+          bind.isIncomingOnly() ? false : await windowManager.isMaximized();
       position = await windowManager.getPosition();
       sz = await windowManager.getSize();
       setFrameIfMaximized();
@@ -1793,11 +1802,11 @@ Future<bool> restoreWindowPosition(WindowType type,
       }
       if (lpos.isMaximized == true) {
         await restorePos();
-        if (!bind.isQs()) {
+        if (!(bind.isIncomingOnly() || bind.isOutgoingOnly())) {
           await windowManager.maximize();
         }
       } else {
-        if (!bind.isQs()) {
+        if (!bind.isIncomingOnly() || bind.isOutgoingOnly()) {
           await windowManager.setSize(size);
         }
         await restorePos();
@@ -3079,25 +3088,46 @@ Color? disabledTextColor(BuildContext context, bool enabled) {
       : Theme.of(context).textTheme.titleLarge?.color?.withOpacity(0.6);
 }
 
-Widget loadLogo(double size) {
-  return Image.asset('assets/logo.png',
+// max 300 x 60
+Widget? loadLogo() {
+  bool isFound = true;
+  final image = Image.asset(
+    'assets/logo.png',
+    fit: BoxFit.contain,
+    errorBuilder: (ctx, error, stackTrace) {
+      isFound = false;
+      return Container();
+    },
+  );
+  if (isFound) {
+    return Container(
+      constraints: BoxConstraints(maxWidth: 300, maxHeight: 60),
+      child: image,
+    ).marginOnly(left: 12, right: 12, top: 12);
+  } else {
+    return null;
+  }
+}
+
+Widget loadIcon(double size) {
+  return Image.asset('assets/icon.png',
       width: size,
       height: size,
       errorBuilder: (ctx, error, stackTrace) => SvgPicture.asset(
-            'assets/logo.svg',
+            'assets/icon.svg',
             width: size,
             height: size,
           ));
 }
 
-var desktopQsHomeLeftPaneSize = Size(280, 300);
-Size getDesktopQsHomeSize() {
-  final magicWidth = 11.0;
+var imcomingOnlyHomeSize = Size(280, 300);
+Size getIncomingOnlyHomeSize() {
+  final magicWidth = Platform.isWindows ? 11.0 : 0.0;
   final magicHeight = 8.0;
-  return desktopQsHomeLeftPaneSize +
+  return imcomingOnlyHomeSize +
       Offset(magicWidth, kDesktopRemoteTabBarHeight + magicHeight);
 }
 
-Size getDesktopQsSettingsSize() {
+Size getIncomingOnlySettingsSize() {
   return Size(768, 600);
 }
