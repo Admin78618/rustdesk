@@ -13,7 +13,6 @@ import 'package:flutter_hbb/desktop/pages/connection_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_setting_page.dart';
 import 'package:flutter_hbb/desktop/pages/desktop_tab_page.dart';
 import 'package:flutter_hbb/desktop/widgets/scroll_wrapper.dart';
-import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/server_model.dart';
 import 'package:flutter_hbb/plugin/ui_manager.dart';
@@ -52,14 +51,9 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   Timer? _updateTimer;
   bool isCardClosed = false;
 
-  RxBool _editHover = false.obs;
+  final RxBool _editHover = false.obs;
 
   final GlobalKey _childKey = GlobalKey();
-
-  bool _isInHomePage() {
-    final controller = Get.find<DesktopTabController>();
-    return controller.state.value.selected == 0;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,11 +69,49 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     );
   }
 
+  Widget buildPresetPasswordWarning() {
+    return FutureBuilder<bool>(
+      future: bind.isPresetPassword(),
+      builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return CircularProgressIndicator(); // Show a loading spinner while waiting for the Future to complete
+        } else if (snapshot.hasError) {
+          return Text(
+              'Error: ${snapshot.error}'); // Show an error message if the Future completed with an error
+        } else if (snapshot.hasData && snapshot.data == true) {
+          return Container(
+            color: Colors.yellow,
+            child: Column(
+              children: [
+                Align(
+                    child: Text(
+                  translate("Security Alert"),
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )).paddingOnly(bottom: 8),
+                Text(
+                  translate("preset_password_warning"),
+                  style: TextStyle(color: Colors.red),
+                )
+              ],
+            ).paddingAll(8),
+          ); // Show a warning message if the Future completed with true
+        } else {
+          return SizedBox
+              .shrink(); // Show nothing if the Future completed with false or null
+        }
+      },
+    );
+  }
+
   Widget buildLeftPane(BuildContext context) {
     final isIncomingOnly = bind.isIncomingOnly();
     final isOutgoingOnly = bind.isOutgoingOnly();
-    final logo = loadLogo();
     final children = <Widget>[
+      if (!isOutgoingOnly) buildPresetPasswordWarning(),
       if (bind.isCustomClient())
         Align(
           alignment: Alignment.center,
@@ -100,12 +132,11 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             ),
           ).marginOnly(top: 6),
         ),
-      if (logo != null)
-        Align(
-          alignment: Alignment.center,
-          child: logo.marginOnly(bottom: 0.0),
-        ),
-      buildTip(context, logo),
+      Align(
+        alignment: Alignment.center,
+        child: loadLogo(),
+      ),
+      buildTip(context),
       if (!isOutgoingOnly) buildIDBoard(context),
       if (!isOutgoingOnly) buildPasswordBoard(context),
       FutureBuilder<Widget>(
@@ -113,7 +144,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         builder: (_, data) {
           if (data.hasData) {
             if (isIncomingOnly) {
-              if (_isInHomePage()) {
+              if (isInHomePage()) {
                 Future.delayed(Duration(milliseconds: 300), () {
                   _updateWindowSize();
                 });
@@ -129,9 +160,10 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     ];
     if (isIncomingOnly) {
       children.addAll([
+        Divider(),
         OnlineStatusWidget(
           onSvcStatusChanged: () {
-            if (_isInHomePage()) {
+            if (isInHomePage()) {
               Future.delayed(Duration(milliseconds: 300), () {
                 _updateWindowSize();
               });
@@ -379,7 +411,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
     );
   }
 
-  buildTip(BuildContext context, Widget? logo) {
+  buildTip(BuildContext context) {
     final isOutgoingOnly = bind.isOutgoingOnly();
     return Padding(
       padding:
@@ -437,7 +469,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       return buildInstallCard("", systemError, "", () {});
     }
 
-    if (Platform.isWindows && !bind.isDisableInstallation()) {
+    if (isWindows && !bind.isDisableInstallation()) {
       if (!bind.mainIsInstalled()) {
         return buildInstallCard(
             "", bind.isOutgoingOnly() ? "" : "install_tip", "Install",
@@ -453,7 +485,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           bind.mainUpdateMe();
         });
       }
-    } else if (Platform.isMacOS) {
+    } else if (isMacOS) {
       if (!(bind.isOutgoingOnly() ||
           bind.mainIsCanScreenRecording(prompt: false))) {
         return buildInstallCard("Permissions", "config_screen", "Configure",
@@ -489,7 +521,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
       //     watchIsCanRecordAudio = true;
       //   });
       // }
-    } else if (Platform.isLinux) {
+    } else if (isLinux) {
       if (bind.isOutgoingOnly()) {
         return Container();
       }
@@ -530,6 +562,21 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           children: LinuxCards,
         );
       }
+    }
+    if (bind.isIncomingOnly()) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: OutlinedButton(
+          onPressed: () {
+            SystemNavigator.pop(); // Close the application
+            // https://github.com/flutter/flutter/issues/66631
+            if (isWindows) {
+              exit(0);
+            }
+          },
+          child: Text(translate('Quit')),
+        ),
+      ).marginAll(14);
     }
     return Container();
   }
@@ -693,7 +740,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         }
       }
       if (watchIsCanRecordAudio) {
-        if (Platform.isMacOS) {
+        if (isMacOS) {
           Future.microtask(() async {
             if ((await osxCanRecordAudio() ==
                 PermissionAuthorizeType.authorized)) {
@@ -753,6 +800,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           isFileTransfer: call.arguments['isFileTransfer'],
           isTcpTunneling: call.arguments['isTcpTunneling'],
           isRDP: call.arguments['isRDP'],
+          password: call.arguments['password'],
           forceRelay: call.arguments['forceRelay'],
         );
       } else if (call.method == kWindowEventMoveTabToNewWindow) {

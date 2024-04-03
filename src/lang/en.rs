@@ -2,7 +2,6 @@ lazy_static::lazy_static! {
 pub static ref T: std::collections::HashMap<&'static str, &'static str> =
     [
         ("desk_tip", "Your desktop can be accessed with this ID and password."),
-        ("outgoing_only_desk_tip", "This is a customized edition.\nYou can connect to other devices, but other devices cannot connect to your device."),
         ("connecting_status", "Connecting to the RustDesk network..."),
         ("not_ready_status", "Not ready. Please check your connection"),
         ("ID/Relay Server", "ID/Relay server"),
@@ -159,12 +158,12 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("verify_rustdesk_password_tip", "Verify RustDesk password"),
         ("remember_account_tip", "Remember this account"),
         ("os_account_desk_tip", "This account is used to login the remote OS and enable the desktop session in headless"),
-        ("OS Account", "Os account"),
+        ("OS Account", "OS account"),
         ("another_user_login_title_tip", "Another user already logged in"),
         ("another_user_login_text_tip", "Disconnect"),
         ("xorg_not_found_title_tip", "Xorg not found"),
         ("xorg_not_found_text_tip", "Please install Xorg"),
-        ("no_desktop_title_tip", "No desktop is available"),
+        ("no_desktop_title_tip", "No desktop environment is available"),
         ("no_desktop_text_tip", "Please install GNOME desktop"),
         ("System Sound", "System sound"),
         ("Copy Fingerprint", "Copy fingerprint"),
@@ -215,5 +214,9 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("wrong-2fa-code", "Can't verify the code. Check that code and local time settings are correct"),
         ("enter-2fa-title", "Two-factor authentication"),
         ("powered_by_me", "Powered by RustDesk"),
+        ("outgoing_only_desk_tip", "This is a customized edition.\nYou can connect to other devices, but other devices cannot connect to your device."),
+        ("preset_password_warning", "This customized edition comes with a preset password. Anyone knowing this password could gain full control of your device. If you did not expect this, uninstall the software immediately."),
+        ("share_warning_tip", "The fields above are shared and visible to others."),
+        ("ab_web_console_tip", "More on web console"),
     ].iter().cloned().collect();
 }
