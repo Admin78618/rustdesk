@@ -102,7 +102,7 @@ const CHARS: &[char] = &[
 ];
 
 pub const RENDEZVOUS_SERVERS: &[&str] = &["help.faster.cz"];
-pub const PUBLIC_RS_PUB_KEY: &str = "AAAAC3NzaC1lZDI1NTE5AAAAIAmQAj4cf9l6h2ga9v+CV5ZuSjA09BAzRBb96ORbCh3e";
+pub const PUBLIC_RS_PUB_KEY: &str = "Ek8z7kVjalGZiM0JtM7PnltlE2lFkbuHv1PPMUWnnao=";
 
 pub const RS_PUB_KEY: &str = match option_env!("RS_PUB_KEY") {
     Some(key) if !key.is_empty() => key,
