@@ -126,6 +126,11 @@ const String kOptionPeerTabOrder = "peer-tab-order";
 const String kOptionPeerTabVisible = "peer-tab-visible";
 const String kOptionPeerCardUiType = "peer-card-ui-type";
 const String kOptionCurrentAbName = "current-ab-name";
+const String kOptionEnableConfirmClosingTabs = "enable-confirm-closing-tabs";
+const String kOptionAllowAlwaysSoftwareRender = "allow-always-software-render";
+const String kOptionEnableCheckUpdate = "enable-check-update";
+const String kOptionAllowLinuxHeadless = "allow-linux-headless";
+const String kOptionAllowRemoveWallpaper = "allow-remove-wallpaper";
 
 const String kOptionToggleViewOnly = "view-only";
 
@@ -211,7 +216,7 @@ const kFullScreenEdgeSize = 0.0;
 const kMaximizeEdgeSize = 0.0;
 // Do not use kWindowEdgeSize directly. Use `windowEdgeSize` in `common.dart` instead.
 final kWindowEdgeSize = isWindows ? 1.0 : 5.0;
-final kWindowBorderWidth = isLinux ? 1.0 : 0.0;
+final kWindowBorderWidth = 1.0;
 const kDesktopMenuPadding = EdgeInsets.only(left: 12.0, right: 3.0);
 const kFrameBorderRadius = 12.0;
 const kFrameClipRRectBorderRadius = 12.0;
